@@ -1,0 +1,30 @@
+import {supabase} from './supabase'
+import {Product} from './types'
+/** Acepta "1.500,50", "1,500.50", "1500,5", "1.500" (miles) */
+export function parsePrice(s:string):number{
+ let t=s.replace(/[^\d.,]/g,'');if(!t)return 0
+ const d=t.lastIndexOf('.'),c=t.lastIndexOf(','),last=Math.max(d,c)
+ if(last<0)return Number(t)
+ const dec=t.slice(last+1),sep=t[last],count=t.split(sep).length-1
+ const other=sep==='.'?',':'.'
+ const isDecimal=t.includes(other)||(count===1&&dec.length!==3)
+ if(isDecimal)return Number(t.slice(0,last).replace(/[.,]/g,'')+'.'+dec)
+ return Number(t.replace(/[.,]/g,''))
+}
+export const fmt=(n:number|null)=>n===null?'—':'$'+n.toLocaleString('es-CO',{maximumFractionDigits:2})
+export const fmtDate=(s:string)=>new Date(s).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})
+export async function uploadImage(f:File){
+ const path=`${Date.now()}-${f.name.replace(/[^\w.]/g,'_')}`
+ const {error}=await supabase.storage.from('products').upload(path,f);if(error)throw error
+ return supabase.storage.from('products').getPublicUrl(path).data.publicUrl
+}
+const norm=(s:string)=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+function lev(a:string,b:string){const m:number[][]=Array.from({length:a.length+1},(_,i)=>[i]);for(let j=1;j<=b.length;j++)m[0][j]=j
+ for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return m[a.length][b.length]}
+/** Búsqueda tolerante a faltas de ortografía, filtra mientras escribes */
+export function matches(p:Product,brand:string,q:string){
+ const toks=norm(q).split(/\s+/).filter(Boolean);if(!toks.length)return true
+ const words=norm(p.name+' '+brand).split(/\s+/)
+ return toks.every(t=>{const tol=t.length<4?0:t.length<7?1:2
+  return words.some(w=>w.includes(t)||lev(t,w.slice(0,t.length))<=tol||lev(t,w)<=tol)})
+}
