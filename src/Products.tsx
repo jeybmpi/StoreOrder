@@ -1,39 +1,53 @@
-import {useRef,useState} from 'react'
-import {supabase} from './supabase'
-import {Brand,Product} from './types'
-import Row from './Row'
+import {useLayoutEffect,useMemo,useRef,useState} from 'react'
+import {Data,EMPTY,Product} from './types'
+import Row,{DragProps} from './Row'
 import {matches} from './utils'
-interface P{products:Product[];brands:Brand[];reload:()=>void;canDelete:boolean}
-export function List({products,brands,reload,canDelete,sold}:P&{sold:boolean}){
- const [q,setQ]=useState('')
- const [ids,setIds]=useState<string[]|null>(null)
- const dragId=useRef<string|null>(null)
- const all=products.filter(p=>p.sold===sold)
- const ordered=ids?ids.map(id=>all.find(p=>p.id===id)).filter(Boolean) as Product[]:all
- const shown=ordered.filter(p=>matches(p,brands.find(b=>b.id===p.brand_id)?.name||'',q))
+export function List({data,sold}:{data:Data;sold:boolean}){
+ const {products,brands,unitsBy,api,canDelete}=data
+ const [q,setQ]=useState('');const [ids,setIds]=useState<string[]|null>(null)
+ const dragId=useRef<string|null>(null);const idsRef=useRef<string[]|null>(null);const root=useRef<HTMLDivElement>(null)
+ const lastY=useRef(0),grab=useRef(0),tr=useRef(0),raf=useRef(0)
+ const all=useMemo(()=>products.filter(p=>{const u=unitsBy.get(p.id)||EMPTY;return (u.length>0&&u.every(x=>x.sold))===sold}),[products,unitsBy,sold])
+ const listRef=useRef<string[]>([]);listRef.current=all.map(p=>p.id)
+ const bm=useMemo(()=>new Map(brands.map(b=>[b.id,b])),[brands])
+ const byId=new Map(all.map(p=>[p.id,p]))
+ const ordered=ids?(ids.map(id=>byId.get(id)).filter(Boolean) as Product[]):all
+ const shown=q?ordered.filter(p=>matches(p,bm.get(p.brand_id||'')?.name||'',q)):ordered
 
- const down=(id:string)=>()=>{dragId.current=id;setIds(all.map(p=>p.id))}
- const move=(e:React.PointerEvent)=>{
-  const d=dragId.current;if(!d)return
-  if(e.clientY<80)window.scrollBy(0,-12);else if(e.clientY>window.innerHeight-80)window.scrollBy(0,12)
-  const els=document.querySelectorAll<HTMLElement>(`[data-list="${sold}"] [data-id]`)
-  for(const el of Array.from(els)){const r=el.getBoundingClientRect()
-   if(e.clientY>r.top&&e.clientY<r.bottom){const over=el.dataset.id!
-    if(over!==d)setIds(prev=>{if(!prev)return prev;const a=prev.filter(x=>x!==d);a.splice(prev.indexOf(over),0,d);return a})
-    break}}}
- const up=async()=>{
-  if(!dragId.current)return;dragId.current=null
-  const pos=all.map(p=>p.position).sort((a,b)=>a-b)
-  const ups=(ids||[]).map((id,i)=>({id,position:pos[i]})).filter(u=>all.find(p=>p.id===u.id)?.position!==u.position)
-  await Promise.all(ups.map(u=>supabase.from('products').update({position:u.position}).eq('id',u.id)))
-  await reload();setIds(null)}
+ // La fila arrastrada sigue al dedo con transform (sin re-renderizar React)
+ const follow=()=>{const d=dragId.current;if(!d||!root.current)return
+  const me=root.current.querySelector<HTMLElement>(`[data-id="${d}"]`);if(!me)return
+  const natural=me.getBoundingClientRect().top-tr.current
+  tr.current=lastY.current-grab.current-natural
+  me.style.transform=`translateY(${tr.current}px)`}
+ useLayoutEffect(follow,[ids])
 
+ const H=useMemo<DragProps>(()=>{
+  const set=(a:string[]|null)=>{idsRef.current=a;setIds(a)}
+  const step=()=>{const d=dragId.current,cur=idsRef.current;if(!d||!cur||!root.current)return
+   const y=lastY.current
+   if(y<90)window.scrollBy(0,-12);else if(y>window.innerHeight-90)window.scrollBy(0,12)
+   const from=cur.indexOf(d)
+   for(const el of Array.from(root.current.children) as HTMLElement[]){const id=el.dataset.id;if(!id||id===d)continue
+    const r=el.getBoundingClientRect()
+    if(y>r.top&&y<r.bottom){const to=cur.indexOf(id),mid=r.top+r.height/2
+     if((to>from&&y>mid)||(to<from&&y<mid)){const a=cur.slice();a.splice(from,1);a.splice(to,0,d);set(a)}
+     break}}
+   follow();raf.current=requestAnimationFrame(step)}
+  return{
+   onDown:(id,y)=>{dragId.current=id;lastY.current=y;tr.current=0
+    const el=root.current?.querySelector<HTMLElement>(`[data-id="${id}"]`);grab.current=el?y-el.getBoundingClientRect().top:0
+    set(listRef.current);raf.current=requestAnimationFrame(step)},
+   onMove:y=>{lastY.current=y},
+   onUp:()=>{const d=dragId.current;if(!d)return;cancelAnimationFrame(raf.current)
+    const el=root.current?.querySelector<HTMLElement>(`[data-id="${d}"]`);if(el)el.style.transform=''
+    dragId.current=null;const a=idsRef.current
+    if(a&&a.join()!==listRef.current.join())api.setOrder(a);set(null)}}
+ // eslint-disable-next-line
+ },[api])
  return <section><h2>{sold?'Vendidos':'Por vender'} ({all.length})</h2>
   <input className="search" placeholder="🔍 Buscar producto o marca…" value={q} onChange={e=>setQ(e.target.value)}/>
-  <div data-list={String(sold)}>
-  {shown.map(p=><Row key={p.id} p={p} brands={brands} sold={sold} canDelete={canDelete} reload={reload}
-   dragging={ids!==null&&dragId.current===p.id}
-   drag={q?undefined:{onDown:down(p.id),onMove:move,onUp:up}}/>)}
-  </div>
+  <div ref={root}>{shown.map(p=><Row key={p.id} p={p} units={unitsBy.get(p.id)||EMPTY} brand={bm.get(p.brand_id||'')} brands={brands} methods={data.methods} sold={sold} canDelete={canDelete} api={api}
+   drag={q?undefined:H} dragging={ids!==null&&dragId.current===p.id}/>)}</div>
   {!shown.length&&<p className="empty">Sin productos</p>}</section>}
-export default function Products(p:P){return <><List {...p} sold={false}/><List {...p} sold={true}/></>}
+export default function Products({data}:{data:Data}){return <><List data={data} sold={false}/><List data={data} sold={true}/></>}
