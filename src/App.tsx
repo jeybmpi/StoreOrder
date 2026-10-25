@@ -7,14 +7,19 @@ import Summary from './Summary'
 import Admin from './Admin'
 import {removeImage} from './utils'
 
+// Rutas reales: / (Productos), /resumen, /admin
+type Route='p'|'s'|'a'
+const PATHS:Record<Route,string>={p:'/',s:'/resumen',a:'/admin'}
+const TITLES:Record<Route,string>={p:'Productos',s:'Resumen',a:'Admin'}
+const routeOf=(path:string):Route=>path.startsWith('/admin')?'a':path.startsWith('/resumen')?'s':'p'
+
 // El orden visual se guarda solo en este navegador (no se envía a Supabase)
 const ORD='orden'
 const readOrd=():string[]=>{try{return JSON.parse(localStorage.getItem(ORD)||'[]')}catch{return[]}}
 const sortBy=(a:Product[],o:string[])=>{const i=new Map(o.map((id,n)=>[id,n]));return [...a].sort((x,y)=>(i.get(x.id)??1e9)-(i.get(y.id)??1e9)||x.position-y.position)}
 
 export default function App(){
- const [tab,setTab]=useState<'p'|'s'>('p')
- const [admin,setAdmin]=useState(location.hash==='#admin')
+ const [route,setRoute]=useState<Route>(()=>{if(location.hash==='#admin')history.replaceState(null,'','/admin');return routeOf(location.pathname)})
  const [products,setP]=useState<Product[]>([]);const [units,setU]=useState<Unit[]>([]);const [brands,setB]=useState<Brand[]>([])
  const [session,setSession]=useState<Session|null>(null);const [pms,setPm]=useState<PayMethod[]>([])
  const pr=useRef(products);pr.current=products
@@ -47,12 +52,15 @@ export default function App(){
   cache.current=m;return m},[units])
  useEffect(()=>{load();supabase.auth.getSession().then(r=>setSession(r.data.session))
   const {data}=supabase.auth.onAuthStateChange((_,s)=>setSession(s))
-  const h=()=>setAdmin(location.hash==='#admin');window.addEventListener('hashchange',h)
-  return()=>{data.subscription.unsubscribe();window.removeEventListener('hashchange',h)}},[load])
- const go=(k:'p'|'s')=>{setTab(k);if(admin){history.replaceState(null,'',location.pathname);setAdmin(false)}}
+  const pop=()=>setRoute(routeOf(location.pathname))
+  const hash=()=>{if(location.hash==='#admin'){history.replaceState(null,'','/admin');setRoute('a')}} // enlaces viejos con #admin
+  window.addEventListener('popstate',pop);window.addEventListener('hashchange',hash)
+  return()=>{data.subscription.unsubscribe();window.removeEventListener('popstate',pop);window.removeEventListener('hashchange',hash)}},[load])
+ useEffect(()=>{document.title=TITLES[route]},[route])
+ const go=(r:Route)=>{if(routeOf(location.pathname)!==r)history.pushState(null,'',PATHS[r]);setRoute(r);window.scrollTo(0,0)}
  const methods=useMemo(()=>pms.map(m=>m.name),[pms])
  const data:Data={products,brands,unitsBy,api,methods,pms,canDelete:!!session}
  return <div className="app">
-  <nav>{([['p','Productos'],['s','Resumen']] as const).map(([k,l])=><button key={k} className={!admin&&tab===k?'on':''} onClick={()=>go(k)}>{l}</button>)}</nav>
-  {admin?<Admin data={data} session={session}/>:tab==='p'?<Products data={data}/>:<Summary products={products} units={units}/>}
+  <nav>{([['p','Productos'],['s','Resumen']] as const).map(([k,l])=><button key={k} className={route===k?'on':''} onClick={()=>go(k)}>{l}</button>)}</nav>
+  {route==='a'?<Admin data={data} session={session}/>:route==='s'?<Summary products={products} units={units}/>:<Products data={data}/>}
  </div>}
