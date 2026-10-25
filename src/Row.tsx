@@ -30,7 +30,7 @@ export function Form({init,qty0,brands,methods,onSave,onCancel}:{init?:Product;q
   <input type="file" accept="image/*" onChange={e=>setFile(e.target.files?.[0]||null)}/>
   <input placeholder="Precio sugerido (1.500,50)" inputMode="decimal" value={sp} onChange={e=>setSp(e.target.value)}/>
   <input placeholder="Precio real por defecto (opcional)" inputMode="decimal" value={rp} onChange={e=>setRp(e.target.value)}/>
-  <label>Cantidad de unidades <input type="number" min="0" style={{width:80}} value={qty} onChange={e=>setQty(e.target.value)}/></label>
+  <label>Cantidad de unidades <input inputMode="numeric" style={{width:80}} value={qty} onChange={e=>setQty(e.target.value.replace(/\D/g,''))}/> <small>(0 = no se muestra en Productos)</small></label>
   <select value={pm} onChange={e=>setPm(e.target.value)}><option value="">Método de pago (opcional)</option>{(pm&&!methods.includes(pm)?[...methods,pm]:methods).map(m=><option key={m}>{m}</option>)}</select>
   <select value={brand} onChange={e=>setBrand(e.target.value)}><option value="">Sin marca</option>{brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select>
   <label>Color <input type="color" value={color||'#ffffff'} onChange={e=>setColor(e.target.value)}/> <button type="button" className="ghost" onClick={()=>setColor('')}>Usar el de la marca</button></label>
@@ -80,6 +80,7 @@ const Row=memo(function Row({p,units,brand,brands,methods,sold,canDelete,api,dra
 
  if(edit)return <div className="row" style={{background:color+'33',borderLeftColor:color}}>
   <Form init={p} qty0={units.length} brands={brands} methods={methods} onCancel={()=>setEdit(false)} onSave={(d,qty)=>{
+   if(qty===0&&units.length>0&&done.length===0&&!confirm('Con 0 unidades el producto dejará de mostrarse en Productos (seguirá en Admin). ¿Continuar?'))return
    api.updProduct(p.id,d);const diff=qty-units.length
    if(diff>0)api.addUnits(p.id,diff)
    else if(diff<0){const rm=avail.slice(0,-diff);if(rm.length<-diff)alert('Solo se pueden quitar unidades disponibles (no vendidas).');rm.forEach(u=>api.delUnit(u.id))}

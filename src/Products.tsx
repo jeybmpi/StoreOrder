@@ -7,7 +7,7 @@ export function List({data,sold}:{data:Data;sold:boolean}){
  const [q,setQ]=useState('');const [ids,setIds]=useState<string[]|null>(null)
  const dragId=useRef<string|null>(null);const idsRef=useRef<string[]|null>(null);const root=useRef<HTMLDivElement>(null)
  const lastY=useRef(0),grab=useRef(0),tr=useRef(0),raf=useRef(0)
- const all=useMemo(()=>products.filter(p=>{const u=unitsBy.get(p.id)||EMPTY;return (u.length>0&&u.every(x=>x.sold))===sold}),[products,unitsBy,sold])
+ const all=useMemo(()=>products.filter(p=>{const u=unitsBy.get(p.id)||EMPTY;return u.length>0&&u.every(x=>x.sold)===sold}),[products,unitsBy,sold])
  const listRef=useRef<string[]>([]);listRef.current=all.map(p=>p.id)
  const bm=useMemo(()=>new Map(brands.map(b=>[b.id,b])),[brands])
  const byId=new Map(all.map(p=>[p.id,p]))
