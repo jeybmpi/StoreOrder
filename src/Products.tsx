@@ -2,7 +2,8 @@ import {useLayoutEffect,useMemo,useRef,useState} from 'react'
 import {Data,EMPTY,Product} from './types'
 import Row,{DragProps} from './Row'
 import {matches} from './utils'
-export function List({data,sold}:{data:Data;sold:boolean}){
+import {SortKey,SortSelect,sortProducts,useSort} from './sort'
+export function List({data,sold,sort}:{data:Data;sold:boolean;sort:SortKey}){
  const {products,brands,unitsBy,api,canDelete}=data
  const [q,setQ]=useState('');const [ids,setIds]=useState<string[]|null>(null)
  const dragId=useRef<string|null>(null);const idsRef=useRef<string[]|null>(null);const root=useRef<HTMLDivElement>(null)
@@ -11,7 +12,8 @@ export function List({data,sold}:{data:Data;sold:boolean}){
  const listRef=useRef<string[]>([]);listRef.current=all.map(p=>p.id)
  const bm=useMemo(()=>new Map(brands.map(b=>[b.id,b])),[brands])
  const byId=new Map(all.map(p=>[p.id,p]))
- const ordered=ids?(ids.map(id=>byId.get(id)).filter(Boolean) as Product[]):all
+ const sorted=useMemo(()=>sort==='manual'?all:sortProducts(all,sort,id=>bm.get(id||'')?.name||''),[all,sort,bm])
+ const ordered=ids?(ids.map(id=>byId.get(id)).filter(Boolean) as Product[]):sorted
  const shown=q?ordered.filter(p=>matches(p,bm.get(p.brand_id||'')?.name||'',q)):ordered
 
  // La fila arrastrada sigue al dedo con transform (sin re-renderizar React)
@@ -48,6 +50,8 @@ export function List({data,sold}:{data:Data;sold:boolean}){
  return <section><h2>{sold?'Vendidos':'Por vender'} ({all.length})</h2>
   <input className="search" placeholder="🔍 Buscar producto o marca…" value={q} onChange={e=>setQ(e.target.value)}/>
   <div ref={root}>{shown.map(p=><Row key={p.id} p={p} units={unitsBy.get(p.id)||EMPTY} brand={bm.get(p.brand_id||'')} brands={brands} methods={data.methods} sold={sold} canDelete={canDelete} api={api}
-   drag={q?undefined:H} dragging={ids!==null&&dragId.current===p.id}/>)}</div>
+   drag={q||sort!=='manual'?undefined:H} dragging={ids!==null&&dragId.current===p.id}/>)}</div>
   {!shown.length&&<p className="empty">Sin productos</p>}</section>}
-export default function Products({data}:{data:Data}){return <><List data={data} sold={false}/><List data={data} sold={true}/></>}
+export default function Products({data}:{data:Data}){
+ const [sort,setSort]=useSort('sort_productos')
+ return <><div className="sortbar"><SortSelect value={sort} onChange={setSort}/></div><List data={data} sold={false} sort={sort}/><List data={data} sold={true} sort={sort}/></>}

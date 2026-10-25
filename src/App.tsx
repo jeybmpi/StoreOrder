@@ -32,7 +32,7 @@ export default function App(){
    const {data,error}=await supabase.from('units').insert(Array.from({length:n},()=>({product_id:pid}))).select()
    if(error){alert(error.message);return};setU(a=>[...a,...(data as Unit[])])}
   return{reload:load,addUnits,
-   updProduct:(id,d)=>{const old=pr.current.find(p=>p.id===id)?.image_url;if(d.image_url&&old&&old!==d.image_url)removeImage(old);setP(a=>a.map(p=>p.id===id?{...p,...d}:p));run(supabase.from('products').update(d).eq('id',id))},
+   updProduct:(id,d)=>{const old=pr.current.find(p=>p.id===id)?.image_url;if(d.image_url&&old&&old!==d.image_url)removeImage(old);setP(a=>a.map(p=>p.id===id?{...p,...d,updated_at:new Date().toISOString()}:p));run(supabase.from('products').update(d).eq('id',id))},
    delProduct:id=>{const old=pr.current.find(p=>p.id===id)?.image_url;if(old)removeImage(old);setP(a=>a.filter(p=>p.id!==id));setU(a=>a.filter(u=>u.product_id!==id));run(supabase.from('products').delete().eq('id',id))},
    createProduct:async(d,qty)=>{const pos=Math.max(0,...pr.current.map(p=>p.position))+1
     const {data,error}=await supabase.from('products').insert({...d,position:pos}).select().single();if(error)throw error

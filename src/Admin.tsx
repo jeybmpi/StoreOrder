@@ -5,10 +5,11 @@ import {Data,EMPTY} from './types'
 import Row,{Form} from './Row'
 import {compress,fmtDate,uploadBlob} from './utils'
 import {exportAll,importAll} from './backup'
+import {SortSelect,sortProducts,useSort} from './sort'
 export default function Admin({data,session}:{data:Data;session:Session|null}){
  const {products,brands,unitsBy,api,methods,pms}=data
  const [email,setE]=useState('');const [pw,setPw]=useState('');const [adding,setAdding]=useState(false)
- const [bn,setBn]=useState('');const [bc,setBc]=useState('#e056fd');const [opt,setOpt]=useState('');const [mn,setMn]=useState('')
+ const [bn,setBn]=useState('');const [bc,setBc]=useState('#e056fd');const [opt,setOpt]=useState('');const [mn,setMn]=useState('');const [sort,setSort]=useSort('sort_admin')
  if(!session)return <section><h2>Admin</h2><div className="form">
   <input placeholder="Correo" value={email} onChange={e=>setE(e.target.value)}/><input type="password" placeholder="Contraseña" value={pw} onChange={e=>setPw(e.target.value)}/>
   <button onClick={async()=>{const {error}=await supabase.auth.signInWithPassword({email,password:pw});if(error)alert(error.message)}}>Entrar</button></div></section>
@@ -48,7 +49,7 @@ export default function Admin({data,session}:{data:Data;session:Session|null}){
   <div className="brand"><button onClick={()=>backup(true)}>⬇️ Descargar respaldo (con fotos)</button><button className="ghost" onClick={()=>backup(false)}>Sin fotos</button></div>
   <label className="brand">⬆️ Restaurar respaldo: <input type="file" accept="application/json,.json" onChange={e=>{restore(e.target.files?.[0]);e.target.value=''}}/></label>
   <h3>Productos ({products.length})</h3>
-  {adding?<Form qty0={1} brands={brands} methods={methods} onCancel={()=>setAdding(false)} onSave={async(d,qty)=>{await api.createProduct(d,qty);setAdding(false)}}/>
-   :<button onClick={()=>setAdding(true)}>+ Agregar producto</button>}
-  <div style={{marginTop:8}}>{products.map(p=>{const u=unitsBy.get(p.id)||EMPTY
+  <div className="toolbar"><button disabled={adding} onClick={()=>setAdding(true)}>+ Agregar producto</button><SortSelect value={sort} onChange={setSort}/></div>
+  {adding&&<Form qty0={1} brands={brands} methods={methods} onCancel={()=>setAdding(false)} onSave={async(d,qty)=>{await api.createProduct(d,qty);setAdding(false)}}/>}
+  <div style={{marginTop:8}}>{sortProducts(products,sort,id=>brands.find(b=>b.id===id)?.name||'').map(p=>{const u=unitsBy.get(p.id)||EMPTY
    return <Row key={p.id} p={p} units={u} brand={brands.find(b=>b.id===p.brand_id)} brands={brands} methods={methods} sold={u.length>0&&u.every(x=>x.sold)} canDelete api={api}/>})}</div></section>}

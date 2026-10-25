@@ -1,5 +1,5 @@
 export interface Brand{id:string;name:string;color:string}
-export interface Product{id:string;name:string;image_url:string|null;suggested_price:number;real_price:number|null;payment_method:string;color:string|null;brand_id:string|null;position:number}
+export interface Product{id:string;name:string;image_url:string|null;suggested_price:number;real_price:number|null;payment_method:string;color:string|null;brand_id:string|null;position:number;created_at?:string;updated_at?:string}
 export interface Unit{id:string;product_id:string;sold:boolean;sold_at:string|null;real_price:number|null;payment_method:string|null}
 export interface PayMethod{id:string;name:string}
 export interface Api{

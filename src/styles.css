@@ -47,3 +47,6 @@ h2,h3{color:#a62bc4;margin:10px 0 6px}.search{width:100%;margin-bottom:8px}
 @keyframes popPink{0%{transform:scale(.92);background:#ff79c9aa;box-shadow:0 0 0 0 #ff79c999}35%{transform:scale(1.04);box-shadow:0 0 0 8px #e056fd44}100%{transform:scale(1);background:transparent;box-shadow:0 0 0 0 #ff79c900}}
 @keyframes shakeRed{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
 @keyframes flashRed{0%{background:#eb4d4baa}100%{background:transparent}}
+
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}.toolbar button:disabled{opacity:.5;cursor:default}
+.sortsel{flex:1;min-width:150px}.sortbar{display:flex;margin:4px 0}

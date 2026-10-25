@@ -29,7 +29,7 @@ export async function importAll(file:File,progress:(s:string)=>void=()=>{}){
  await up('brands',d.brands.map((b:any)=>pick(b,['id','name','color'])),'id')
  await up('payment_methods',d.payment_methods.map((m:any)=>pick(m,['id','name'])),'name')
  const products=[];let n=0
- for(const p of d.products){const row:any=pick(p,['id','name','image_url','suggested_price','real_price','payment_method','color','brand_id','position'])
+ for(const p of d.products){const row:any=pick(p,['id','name','image_url','suggested_price','real_price','payment_method','color','brand_id','position','created_at'])
   const img=d.images?.[p.id];if(img){progress(`Subiendo fotos… ${++n}`);try{row.image_url=await uploadBlob(await (await fetch(img)).blob())}catch{}}
   products.push(row)}
  progress('Cargando productos y unidades…')
