@@ -50,3 +50,5 @@ h2,h3{color:#a62bc4;margin:10px 0 6px}.search{width:100%;margin-bottom:8px}
 
 .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}.toolbar button:disabled{opacity:.5;cursor:default}
 .sortsel{flex:1;min-width:150px}.sortbar{display:flex;margin:4px 0}
+.txt b{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.25}
+.txt small{overflow-wrap:anywhere}
