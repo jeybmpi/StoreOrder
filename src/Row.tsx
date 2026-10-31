@@ -1,7 +1,7 @@
 import {memo,useRef,useState} from 'react'
 import {createPortal} from 'react-dom'
 import {Api,Brand,Product,Unit} from './types'
-import {fmt,fmtDate,parsePrice,uploadImage} from './utils'
+import {chipStyle,fmt,fmtDate,parsePrice,uploadImage} from './utils'
 import {burst,fxMap} from './fx'
 
 const dragState={active:false}
@@ -36,12 +36,13 @@ export function Form({init,qty0,brands,methods,onSave,onCancel}:{init?:Product;q
   <label>Color <input type="color" value={color||'#ffffff'} onChange={e=>setColor(e.target.value)}/> <button type="button" className="ghost" onClick={()=>setColor('')}>Usar el de la marca</button></label>
   <div className="btns"><button disabled={busy} onClick={save}>Guardar</button><button className="ghost" onClick={onCancel}>Cancelar</button></div></div>}
 
-function UnitLine({u,p,methods,api}:{u:Unit;p:Product;methods:string[];api:Api}){
+function UnitLine({u,p,methods,api,canEdit}:{u:Unit;p:Product;methods:string[];api:Api;canEdit:boolean}){
  const def=p.real_price??p.suggested_price;const pay=u.payment_method??p.payment_method??''
  const [cls]=useState(()=>{const f=fxMap.get(u.id);if(f&&Date.now()-f.t<2000){fxMap.delete(u.id);return f.kind==='sell'?'flash-pink':'flash-red'};return ''})
  const go=(kind:'sell'|'back')=>(pt:{x:number;y:number})=>{fxMap.set(u.id,{kind,t:Date.now()});burst(kind,pt.x,pt.y)
   api.updUnit(u.id,kind==='sell'?{sold:true,sold_at:new Date().toISOString(),real_price:u.real_price??def,...((u.payment_method||p.payment_method)?{payment_method:u.payment_method||p.payment_method}:{})}:{sold:false,sold_at:null})}
  const opts=!pay||methods.includes(pay)?methods:[...methods,pay]
+ if(!canEdit)return <div className="unit"><b>{fmt(u.real_price??def)}</b><span className="ro">{pay||'Sin método'}</span>{u.sold&&u.sold_at&&<small className="when">Vendida: {fmtDate(u.sold_at)}</small>}</div>
  return <div className={'unit '+cls}>
   <input key={u.real_price} inputMode="decimal" defaultValue={u.real_price??''} placeholder={String(def)} title="Precio de venta"
    onBlur={e=>{const v=e.target.value.trim()?parsePrice(e.target.value):null;if(v!==u.real_price)api.updUnit(u.id,{real_price:v})}}/>
@@ -90,20 +91,20 @@ const Row=memo(function Row({p,units,brand,brands,methods,sold,canDelete,api,dra
   <div className="info" onPointerDown={onDown} onContextMenu={e=>e.preventDefault()}>
    {p.image_url?<img src={p.image_url} draggable={false} loading="lazy" decoding="async" onClick={()=>{if(!g.current.long&&!g.current.moved)setZoom(true)}}/>:<div className="noimg">📦</div>}
    <div className="txt"><b>{p.name}</b>
-    <small>{brand&&<span className="chip" style={{background:brand.color}}>{brand.name}</span>}{fmt(p.suggested_price)}{sold&&last?` · ${fmtDate(last)}`:''}</small></div></div>
+    <small>{brand&&<span className="chip" style={chipStyle(brand.color)}>{brand.name}</span>}{fmt(p.suggested_price)}{sold&&last?` · ${fmtDate(last)}`:''}</small></div></div>
   <div className="ctl">
    <input key={p.real_price} inputMode="decimal" defaultValue={p.real_price??''} placeholder={'Real '+p.suggested_price} title="Precio real por defecto"
     onBlur={e=>{const v=e.target.value.trim()?parsePrice(e.target.value):null;if(v!==p.real_price)api.updProduct(p.id,{real_price:v})}}/>
-   <button className="ib" onClick={()=>setEdit(true)}>✏️</button>{canDelete&&<button className="ib" onClick={del}>✕</button>}</div>
+   {canDelete&&<><button className="ib" onClick={()=>setEdit(true)}>✏️</button><button className="ib" onClick={del}>✕</button></>}</div>
   {picker&&<div className="picker">Color: <input type="color" value={pc} onChange={e=>setPc(e.target.value)}/>
    <button onClick={()=>{api.updProduct(p.id,{color:pc});setPicker(false)}}>Guardar</button>
    <button className="ghost" onClick={()=>{api.updProduct(p.id,{color:null});setPicker(false)}}>Quitar</button>
    <button className="ghost" onClick={()=>setPicker(false)}>Cerrar</button></div>}
   <div className="uhead" onClick={()=>setOpen(!open)}><span>{open?'▾':'▸'} Disponibles {avail.length} · Vendidas {done.length}</span>
-   <button onClick={e=>{e.stopPropagation();api.addUnits(p.id,1)}}>+</button></div>
+   {canDelete&&<button onClick={e=>{e.stopPropagation();api.addUnits(p.id,1)}}>+</button>}</div>
   {open&&<div className="ugroups">
-   <div><b>Disponibles ({avail.length})</b>{avail.map(u=><UnitLine key={u.id} u={u} p={p} methods={methods} api={api}/>)}</div>
-   <div><b>Vendidas ({done.length})</b>{done.map(u=><UnitLine key={u.id} u={u} p={p} methods={methods} api={api}/>)}</div></div>}
+   <div><b>Disponibles ({avail.length})</b>{avail.map(u=><UnitLine key={u.id} u={u} p={p} methods={methods} api={api} canEdit={canDelete}/>)}</div>
+   <div><b>Vendidas ({done.length})</b>{done.map(u=><UnitLine key={u.id} u={u} p={p} methods={methods} api={api} canEdit={canDelete}/>)}</div></div>}
   {zoom&&p.image_url&&createPortal(<div className="zoom" onClick={()=>setZoom(false)}><img src={p.image_url}/></div>,document.body)}
  </div>})
 export default Row
