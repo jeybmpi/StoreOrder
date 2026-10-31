@@ -1,4 +1,5 @@
 import {supabase} from './supabase'
+import type {CSSProperties} from 'react'
 import {Product} from './types'
 /** Acepta "1.500,50", "1,500.50", "1500,5", "1.500" (miles) */
 export function parsePrice(s:string):number{
@@ -40,3 +41,9 @@ export function matches(p:Product,brand:string,q:string){
  return toks.every(t=>{const tol=t.length<4?0:t.length<7?1:2
   return words.some(w=>w.includes(t)||lev(t,w.slice(0,t.length))<=tol||lev(t,w)<=tol)})
 }
+
+/** Estilo del chip de marca: si el color es claro (blanco, amarillo pálido...), usa letra oscura y un borde fino */
+export function chipStyle(hex:string):CSSProperties{
+ const m=/^#?([0-9a-f]{6})$/i.exec(hex);if(!m)return{background:hex}
+ const n=parseInt(m[1],16),lum=(0.299*(n>>16&255)+0.587*(n>>8&255)+0.114*(n&255))/255
+ return lum>0.7?{background:hex,color:'#2e1a47',boxShadow:'inset 0 0 0 1px #2e1a4744'}:{background:hex}}

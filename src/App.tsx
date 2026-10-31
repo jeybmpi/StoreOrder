@@ -5,6 +5,7 @@ import {Api,Brand,Data,PayMethod,Product,Unit} from './types'
 import Products from './Products'
 import Summary from './Summary'
 import Admin from './Admin'
+import Login from './Login'
 import {removeImage} from './utils'
 
 // Rutas reales: / (Productos), /resumen, /admin
@@ -21,7 +22,7 @@ const sortBy=(a:Product[],o:string[])=>{const i=new Map(o.map((id,n)=>[id,n]));r
 export default function App(){
  const [route,setRoute]=useState<Route>(()=>{if(location.hash==='#admin')history.replaceState(null,'','/admin');return routeOf(location.pathname)})
  const [products,setP]=useState<Product[]>([]);const [units,setU]=useState<Unit[]>([]);const [brands,setB]=useState<Brand[]>([])
- const [session,setSession]=useState<Session|null>(null);const [pms,setPm]=useState<PayMethod[]>([])
+ const [session,setSession]=useState<Session|null>(null);const [pms,setPm]=useState<PayMethod[]>([]);const [ready,setReady]=useState(false)
  const pr=useRef(products);pr.current=products
  const load=useCallback(async()=>{
   const [a,b,c,d]=await Promise.all([supabase.from('products').select('*').order('position'),supabase.from('brands').select('*').order('name'),supabase.from('units').select('*').order('created_at').limit(10000),supabase.from('payment_methods').select('*').order('name')])
@@ -50,7 +51,7 @@ export default function App(){
   for(const u of units){const a=m.get(u.product_id);a?a.push(u):m.set(u.product_id,[u])}
   for(const [k,a] of m){const o=cache.current.get(k);if(o&&o.length===a.length&&o.every((x,i)=>x===a[i]))m.set(k,o)}
   cache.current=m;return m},[units])
- useEffect(()=>{load();supabase.auth.getSession().then(r=>setSession(r.data.session))
+ useEffect(()=>{load();supabase.auth.getSession().then(r=>{setSession(r.data.session);setReady(true)})
   const {data}=supabase.auth.onAuthStateChange((_,s)=>setSession(s))
   const pop=()=>setRoute(routeOf(location.pathname))
   const hash=()=>{if(location.hash==='#admin'){history.replaceState(null,'','/admin');setRoute('a')}} // enlaces viejos con #admin
@@ -61,6 +62,6 @@ export default function App(){
  const methods=useMemo(()=>pms.map(m=>m.name),[pms])
  const data:Data={products,brands,unitsBy,api,methods,pms,canDelete:!!session}
  return <div className="app">
-  <nav>{([['p','Productos'],['s','Resumen']] as const).map(([k,l])=><button key={k} className={route===k?'on':''} onClick={()=>go(k)}>{l}</button>)}</nav>
-  {route==='a'?<Admin data={data} session={session}/>:route==='s'?<Summary products={products} units={units}/>:<Products data={data}/>}
+  <nav>{([['p','Productos'],['s','Resumen']] as const).filter(([k])=>k!=='s'||session).map(([k,l])=><button key={k} className={route===k?'on':''} onClick={()=>go(k)}>{l}</button>)}</nav>
+  {route!=='p'&&!ready?<p className="empty">Cargando…</p>:route==='a'?<Admin data={data} session={session}/>:route==='s'?(session?<Summary products={products} units={units}/>:<Login title="Resumen"/>):<Products data={data}/>}
  </div>}
