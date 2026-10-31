@@ -42,10 +42,14 @@ function UnitLine({u,p,methods,api,canEdit}:{u:Unit;p:Product;methods:string[];a
  const go=(kind:'sell'|'back')=>(pt:{x:number;y:number})=>{fxMap.set(u.id,{kind,t:Date.now()});burst(kind,pt.x,pt.y)
   api.updUnit(u.id,kind==='sell'?{sold:true,sold_at:new Date().toISOString(),real_price:u.real_price??def,...((u.payment_method||p.payment_method)?{payment_method:u.payment_method||p.payment_method}:{})}:{sold:false,sold_at:null})}
  const opts=!pay||methods.includes(pay)?methods:[...methods,pay]
- if(!canEdit)return <div className="unit"><b>{fmt(u.real_price??def)}</b><span className="ro">{pay||'Sin método'}</span>{u.sold&&u.sold_at&&<small className="when">Vendida: {fmtDate(u.sold_at)}</small>}</div>
- return <div className={'unit '+cls}>
-  <input key={u.real_price} inputMode="decimal" defaultValue={u.real_price??''} placeholder={String(def)} title="Precio de venta"
+ const priceInput=<input key={u.real_price} inputMode="decimal" defaultValue={u.real_price??''} placeholder={String(def)} title="Precio de venta"
    onBlur={e=>{const v=e.target.value.trim()?parsePrice(e.target.value):null;if(v!==u.real_price)api.updUnit(u.id,{real_price:v})}}/>
+ if(!canEdit){
+  // Sin sesión: puede poner el precio real y VENDER unidades disponibles; lo vendido queda solo de lectura
+  if(u.sold)return <div className="unit"><b>{fmt(u.real_price??def)}</b><span className="ro">{pay||'Sin método'}</span>{u.sold_at&&<small className="when">Vendida: {fmtDate(u.sold_at)}</small>}</div>
+  return <div className={'unit '+cls}>{priceInput}<span className="ro">{pay||'Sin método'}</span><Swipe onDone={go('sell')}/></div>}
+ return <div className={'unit '+cls}>
+  {priceInput}
   <select value={pay} title="Método de pago" onChange={e=>api.updUnit(u.id,{payment_method:e.target.value||null})}>
    <option value="">Método…</option>{opts.map(m=><option key={m}>{m}</option>)}</select>
   <Swipe red={u.sold} onDone={go(u.sold?'back':'sell')}/>
